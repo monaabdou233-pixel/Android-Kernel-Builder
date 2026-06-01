@@ -2,7 +2,7 @@
   {
     "kernelSource": {
       "name": "Oppo-A15-KernelSU",
-      "repo": "https://github.com/ansh-m14x/Kernal-A15-6765",
+      "repo": "https://github.com/monaabdou233-pixel/Kernal-A15-6765",
       "branch": "main",
       "device": "odin"
     },
