@@ -1,0 +1,60 @@
+name: Build Oppo A15 Kernel
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Install Build Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bc build-essential libncurses5-dev libssl-dev bison flex libelf-dev glibc-source libcap-dev xz-utils git ccache
+
+      - name: Download Kernel Source and Toolchains
+        run: |
+          mkdir -p workspace
+          cd workspace
+          
+          # تحميل سورس النواة لجهاز Oppo A15
+          git clone --depth=1 -b main https://github.com/ansh-m14x/Kernal-A15-6765.git kernel-source
+          
+          # تحميل المترجمات الرسمية Clang 10 و GCC من جوجل
+          git clone --depth=1 -b android10-release https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86 clang
+          git clone --depth=1 -b ndk-release-r21 https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9 gcc64
+          git clone --depth=1 -b ndk-release-r21 https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9 gcc32
+          git clone --depth=1 -b master https://android.googlesource.com/platform/prebuilts/gas/linux-x86 gas
+
+      - name: Build Kernel with KernelSU
+        run: |
+          cd workspace/kernel-source/kernel-4.9
+          
+          # إعداد مسارات المترجمات في بيئة العمل
+          export PATH=$GITHUB_WORKSPACE/workspace/clang/bin:$GITHUB_WORKSPACE/workspace/gcc64/bin:$GITHUB_WORKSPACE/workspace/gcc32/bin:$GITHUB_WORKSPACE/workspace/gas:$PATH
+          
+          # معاملات البناء لمعالج MT6765
+          export ARCH=arm64
+          export SUBARCH=arm64
+          export CROSS_COMPILE=aarch64-linux-android-
+          export CROSS_COMPILE_ARM32=arm-linux-androideabi-
+          export CLANG_TRIPLE=aarch64-linux-gnu-
+          export CC=clang
+          
+          # دمج KernelSU تلقائياً في السورس إذا لم يكن مدمجاً
+          curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -
+          
+          # تجميع النواة
+          make clean
+          make mrproper
+          make a15_defconfig
+          make -j$(nproc --all)
+
+      - name: Upload Kernel Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: Oppo-A15-KernelSU-Image
+          path: workspace/kernel-source/kernel-4.9/arch/arm64/boot/Image.gz-dtb
